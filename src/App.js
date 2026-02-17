@@ -19,6 +19,7 @@ function App() {
   const [user, setUser] = useState(null);
   const [showTutorial, setShowTutorial] = useState(false);
   const [isNewUser, setIsNewUser] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Check for existing user on app start
   useEffect(() => {
@@ -30,11 +31,17 @@ function App() {
       // Check if user has seen tutorial
       if (userData.hasSeenTutorial) {
         setCurrentScreen('home');
+        setShowTutorial(false);
       } else {
+        // User exists but hasn't seen tutorial
+        setCurrentScreen('home');
         setShowTutorial(true);
-        setCurrentScreen('home'); // Show home behind tutorial
       }
+    } else {
+      // No user found, show login
+      setCurrentScreen('login');
     }
+    setIsLoading(false);
   }, []);
 
   // Load hikes from localStorage
@@ -99,23 +106,29 @@ function App() {
     if (isNew) {
       setIsNewUser(true);
     } else if (userData) {
-      setUser(userData);
-      
-      // Check if user has seen tutorial
-      if (userData.hasSeenTutorial) {
-        setCurrentScreen('home');
-      } else {
-        setShowTutorial(true);
-        setCurrentScreen('home');
-      }
+      // Save user to localStorage
+      const userWithTutorialFlag = {
+        ...userData,
+        hasSeenTutorial: false // New users haven't seen tutorial
+      };
+      localStorage.setItem('currentUser', JSON.stringify(userWithTutorialFlag));
+      setUser(userWithTutorialFlag);
+      setCurrentScreen('home');
+      setShowTutorial(true); // Show tutorial for new users
     }
   };
 
   const handleNewUserComplete = (newUser) => {
-    setUser(newUser);
+    // New user hasn't seen tutorial yet
+    const userWithTutorialFlag = {
+      ...newUser,
+      hasSeenTutorial: false
+    };
+    localStorage.setItem('currentUser', JSON.stringify(userWithTutorialFlag));
+    setUser(userWithTutorialFlag);
     setIsNewUser(false);
-    setShowTutorial(true);
     setCurrentScreen('home');
+    setShowTutorial(true); // Show tutorial for new users
   };
 
   const handleTutorialComplete = () => {
@@ -134,6 +147,33 @@ function App() {
     setShowTutorial(false);
   };
 
+  const handleLogout = () => {
+    // Clear user from localStorage but keep hikes
+    localStorage.removeItem('currentUser');
+    setUser(null);
+    setCurrentScreen('login');
+    setShowTutorial(false);
+  };
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="App" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '48px', animation: 'pulse 1.5s infinite' }}>🥾</div>
+          <p style={{ color: '#999', marginTop: '20px' }}>Loading...</p>
+        </div>
+        <style>{`
+          @keyframes pulse {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.1); }
+            100% { opacity: 1; transform: scale(1); }
+          }
+        `}</style>
+      </div>
+    );
+  }
+
   return (
     <div className="App">
       {/* Login Screen */}
@@ -146,12 +186,12 @@ function App() {
         <NewUserScreen onComplete={handleNewUserComplete} />
       )}
 
-      {/* Tutorial Overlay */}
-      {showTutorial && user && (
+      {/* Tutorial Overlay - Only show if user exists AND hasn't seen tutorial AND we're on home screen */}
+      {showTutorial && user && currentScreen === 'home' && (
         <TutorialScreen
           onComplete={handleTutorialComplete}
           onSkip={handleTutorialSkip}
-          userName={user.displayName || user.username}
+          userName={user.displayName || user.username || 'there'}
         />
       )}
 
@@ -165,6 +205,7 @@ function App() {
               hikes={hikes}
               onSelectHike={viewHikeDetail}
               user={user}
+              onLogout={handleLogout}
             />
           )}
           
@@ -207,6 +248,7 @@ function App() {
               hikes={hikes}
               setCurrentScreen={setCurrentScreen}
               user={user}
+              onLogout={handleLogout}
             />
           )}
 
@@ -214,6 +256,7 @@ function App() {
             <CommunityScreen 
               setCurrentScreen={setCurrentScreen}
               user={user}
+              hikes={hikes}
             />
           )}
         </>
