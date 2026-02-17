@@ -116,13 +116,16 @@ const ActiveHike = ({ activeHike, setActiveHike, saveCompletedHike, setCurrentSc
     }
   };
 
+  // FIXED: MapController with correct useEffect dependencies
   const MapController = () => {
     const map = useMap();
+    
     useEffect(() => {
       if (position) {
         map.setView([position.lat, position.lng], 16);
       }
-    }, [position]);
+    }, [position, map]); // ✅ Added 'map' to dependencies
+    
     return null;
   };
 

@@ -44,7 +44,7 @@ const HomeScreen = ({ setCurrentScreen, startNewHike, hikes, onSelectHike }) => 
 
       <div className="header">
         <button className="menu-btn" onClick={() => {}}>☰</button>
-        <h2>HikeTracker</h2>
+        <h2>HiKompanion</h2>
         <button className="profile-btn" onClick={() => {}}>👤</button>
       </div>
 

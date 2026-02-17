@@ -12,7 +12,6 @@ function App() {
   const [activeHike, setActiveHike] = useState(null);
   const [selectedHike, setSelectedHike] = useState(null);
 
-  // Load hikes from localStorage
   useEffect(() => {
     const savedHikes = localStorage.getItem('hikes');
     if (savedHikes) {
@@ -24,7 +23,6 @@ function App() {
     }
   }, []);
 
-  // Save hikes to localStorage
   useEffect(() => {
     if (hikes.length > 0) {
       localStorage.setItem('hikes', JSON.stringify(hikes));
