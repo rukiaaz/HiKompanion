@@ -1,65 +1,135 @@
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
+import socialService from '../services/socialService';
 
 const CommunityScreen = ({ setCurrentScreen, user }) => {
   const [feed, setFeed] = useState([]);
   const [friends, setFriends] = useState([]);
+  const [friendRequests, setFriendRequests] = useState([]);
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('feed');
   const [loading, setLoading] = useState(false);
+  const [showRequests, setShowRequests] = useState(false);
+  const [likedPosts, setLikedPosts] = useState({});
+  const [commentText, setCommentText] = useState({});
+  const [showComments, setShowComments] = useState({});
 
   useEffect(() => {
-    loadMockData();
+    loadData();
   }, []);
 
-  const loadMockData = () => {
+  const loadData = async () => {
     setLoading(true);
-    // Mock data for demo
-    const mockFeed = [
-      {
-        id: 1,
-        username: 'hiker_john',
-        userPhoto: '',
-        hikeData: {
-          title: 'Morning Trail Run',
-          description: 'Beautiful sunrise hike!',
-          distance: 8.5,
-          duration: '01:45:00',
-          elevationGain: 320,
-          difficulty: 'medium',
-          imageUrl: null
-        },
-        likes: ['user1', 'user2'],
-        comments: [],
-        createdAt: new Date(Date.now() - 86400000).toISOString()
-      },
-      {
-        id: 2,
-        username: 'trail_master',
-        userPhoto: '',
-        hikeData: {
-          title: 'Mountain Summit',
-          description: 'Reached the top!',
-          distance: 12.2,
-          duration: '03:30:00',
-          elevationGain: 850,
-          difficulty: 'hard',
-          imageUrl: null
-        },
-        likes: ['user3'],
-        comments: [],
-        createdAt: new Date().toISOString()
-      }
-    ];
     
-    const mockFriends = [
-      { uid: 'user2', username: 'hiker_john', totalHikes: 12, totalDistance: 45.6 },
-      { uid: 'user3', username: 'trail_master', totalHikes: 23, totalDistance: 89.2 }
-    ];
+    // Load feed
+    const feedResult = await socialService.getFeed();
+    if (feedResult.success) {
+      setFeed(feedResult.posts || []);
+      
+      // Track which posts current user liked
+      const liked = {};
+      feedResult.posts.forEach(post => {
+        liked[post.id] = post.likes?.includes(user?.uid) || false;
+      });
+      setLikedPosts(liked);
+    }
     
-    setFeed(mockFeed);
-    setFriends(mockFriends);
+    // Load friends
+    const friendsResult = await socialService.getFriends();
+    if (friendsResult.success) {
+      setFriends(friendsResult.friends || []);
+    }
+    
+    // Load friend requests
+    const requestsResult = await socialService.getFriendRequests();
+    if (requestsResult.success) {
+      setFriendRequests(requestsResult.requests || []);
+    }
+    
     setLoading(false);
   };
+
+  const handleSearch = async () => {
+    if (!searchTerm.trim()) return;
+    
+    setLoading(true);
+    const result = await socialService.searchUsers(searchTerm);
+    if (result.success) {
+      setSearchResults(result.users);
+    }
+    setLoading(false);
+  };
+
+  const handleSendFriendRequest = async (targetUsername) => {
+    const result = await socialService.sendFriendRequest(targetUsername);
+    if (result.success) {
+      alert(`Friend request sent to ${targetUsername}!`);
+      // Remove from search results or update UI
+      setSearchResults(prev => prev.filter(u => u.username !== targetUsername));
+    } else {
+      alert('Error sending friend request');
+    }
+  };
+
+  const handleAcceptRequest = async (requestId) => {
+    const result = await socialService.acceptFriendRequest(requestId);
+    if (result.success) {
+      // Refresh data
+      loadData();
+      setShowRequests(false);
+    }
+  };
+
+  const handleLikePost = async (postId) => {
+    const result = await socialService.likePost(postId);
+    if (result.success) {
+      // Update local state
+      setLikedPosts(prev => ({
+        ...prev,
+        [postId]: !prev[postId]
+      }));
+      
+      // Update feed likes count
+      setFeed(prev => prev.map(post => {
+        if (post.id === postId) {
+          const newLikes = likedPosts[postId] 
+            ? post.likes.filter(id => id !== user?.uid)
+            : [...post.likes, user?.uid];
+          return { ...post, likes: newLikes };
+        }
+        return post;
+      }));
+    }
+  };
+
+  const handleAddComment = async (postId) => {
+    const comment = commentText[postId];
+    if (!comment?.trim()) return;
+    
+    const result = await socialService.addComment(postId, comment);
+    if (result.success) {
+      // Clear comment input
+      setCommentText(prev => ({ ...prev, [postId]: '' }));
+      
+      // Refresh feed to show new comment
+      const feedResult = await socialService.getFeed();
+      if (feedResult.success) {
+        setFeed(feedResult.posts || []);
+      }
+    }
+  };
+
+  const handleSharePost = async (post) => {
+    if (window.confirm('Share this hike to your profile?')) {
+      const result = await socialService.shareHike(post.hikeData);
+      if (result.success) {
+        alert('Post shared successfully!');
+      }
+    }
+  };
+
+  const pendingRequests = friendRequests.filter(r => r.status === 'pending');
 
   return (
     <div className="App">
@@ -82,6 +152,169 @@ const CommunityScreen = ({ setCurrentScreen, user }) => {
               Welcome, {user?.displayName || user?.username}!
             </p>
           </div>
+          {pendingRequests.length > 0 && (
+            <button 
+              onClick={() => setShowRequests(!showRequests)}
+              style={{
+                background: '#ff4444',
+                border: 'none',
+                color: '#fff',
+                padding: '5px 10px',
+                borderRadius: '20px',
+                fontSize: '12px',
+                marginLeft: 'auto',
+                cursor: 'pointer'
+              }}
+            >
+              {pendingRequests.length} Request{pendingRequests.length > 1 ? 's' : ''}
+            </button>
+          )}
+        </div>
+
+        {/* Friend Requests Modal */}
+        {showRequests && (
+          <div style={{
+            background: '#1a1a1a',
+            borderRadius: '12px',
+            padding: '15px',
+            marginBottom: '20px',
+            border: '1px solid #333'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+              <h3 style={{ color: '#fff' }}>Friend Requests</h3>
+              <button 
+                onClick={() => setShowRequests(false)}
+                style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer' }}
+              >
+                ✕
+              </button>
+            </div>
+            {pendingRequests.length === 0 ? (
+              <p style={{ color: '#888' }}>No pending requests</p>
+            ) : (
+              pendingRequests.map(request => (
+                <div key={request.id} style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '10px',
+                  background: '#222',
+                  borderRadius: '8px',
+                  marginBottom: '8px'
+                }}>
+                  <div>
+                    <div style={{ color: '#fff', fontWeight: '600' }}>{request.fromName}</div>
+                    <div style={{ color: '#888', fontSize: '12px' }}>
+                      {format(new Date(request.createdAt), 'MMM d')}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      onClick={() => handleAcceptRequest(request.id)}
+                      style={{
+                        background: '#4CAF50',
+                        border: 'none',
+                        color: '#fff',
+                        padding: '5px 15px',
+                        borderRadius: '5px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Accept
+                    </button>
+                    <button
+                      style={{
+                        background: '#666',
+                        border: 'none',
+                        color: '#fff',
+                        padding: '5px 15px',
+                        borderRadius: '5px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Decline
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* Search Bar */}
+        <div style={{ marginBottom: '20px' }}>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <input
+              type="text"
+              placeholder="Search for friends..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+              style={{
+                flex: 1,
+                padding: '12px',
+                background: '#1a1a1a',
+                border: '1px solid #333',
+                borderRadius: '8px',
+                color: '#fff',
+                fontSize: '14px'
+              }}
+            />
+            <button
+              onClick={handleSearch}
+              style={{
+                padding: '12px 20px',
+                background: '#333',
+                border: 'none',
+                borderRadius: '8px',
+                color: '#fff',
+                cursor: 'pointer'
+              }}
+            >
+              🔍
+            </button>
+          </div>
+
+          {/* Search Results */}
+          {searchResults.length > 0 && (
+            <div style={{
+              marginTop: '10px',
+              background: '#1a1a1a',
+              borderRadius: '8px',
+              border: '1px solid #333',
+              padding: '10px'
+            }}>
+              {searchResults.map(user => (
+                <div key={user.uid} style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '10px',
+                  borderBottom: '1px solid #333'
+                }}>
+                  <div>
+                    <div style={{ color: '#fff', fontWeight: '600' }}>{user.username}</div>
+                    <div style={{ color: '#888', fontSize: '12px' }}>
+                      {user.totalHikes || 0} hikes
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleSendFriendRequest(user.username)}
+                    style={{
+                      background: '#4CAF50',
+                      border: 'none',
+                      color: '#fff',
+                      padding: '5px 15px',
+                      borderRadius: '5px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Add Friend
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Tab Navigation */}
@@ -120,7 +353,7 @@ const CommunityScreen = ({ setCurrentScreen, user }) => {
               borderBottom: activeTab === 'friends' ? '2px solid #fff' : 'none'
             }}
           >
-            Friends
+            Friends ({friends.length})
           </button>
         </div>
 
@@ -139,7 +372,7 @@ const CommunityScreen = ({ setCurrentScreen, user }) => {
               </div>
             ) : (
               feed.map(post => (
-                <div key={post.id} className="hike-item" style={{ padding: 0 }}>
+                <div key={post.id} className="hike-item" style={{ padding: 0, marginBottom: '20px' }}>
                   {/* Post Header */}
                   <div style={{
                     display: 'flex',
@@ -163,7 +396,7 @@ const CommunityScreen = ({ setCurrentScreen, user }) => {
                     <div>
                       <div style={{ color: '#fff', fontWeight: '600' }}>{post.username}</div>
                       <div style={{ color: '#888', fontSize: '12px' }}>
-                        {format(new Date(post.createdAt), 'MMM d, h:mm a')}
+                        {format(new Date(post.timestamp), 'MMM d, h:mm a')}
                       </div>
                     </div>
                   </div>
@@ -171,10 +404,10 @@ const CommunityScreen = ({ setCurrentScreen, user }) => {
                   {/* Post Content */}
                   <div style={{ padding: '15px' }}>
                     <h3 style={{ color: '#fff', marginBottom: '5px' }}>
-                      {post.hikeData.title}
+                      {post.hikeData?.title || 'Untitled Hike'}
                     </h3>
                     <p style={{ color: '#888', marginBottom: '10px' }}>
-                      {post.hikeData.description}
+                      {post.hikeData?.description || ''}
                     </p>
 
                     {/* Hike Stats */}
@@ -190,32 +423,47 @@ const CommunityScreen = ({ setCurrentScreen, user }) => {
                       <div style={{ textAlign: 'center' }}>
                         <div style={{ fontSize: '12px', color: '#888' }}>km</div>
                         <div style={{ color: '#fff', fontWeight: '600' }}>
-                          {post.hikeData.distance.toFixed(1)}
+                          {post.hikeData?.distance?.toFixed(1) || '0'}
                         </div>
                       </div>
                       <div style={{ textAlign: 'center' }}>
                         <div style={{ fontSize: '12px', color: '#888' }}>time</div>
                         <div style={{ color: '#fff', fontWeight: '600' }}>
-                          {post.hikeData.duration}
+                          {post.hikeData?.duration || '00:00'}
                         </div>
                       </div>
                       <div style={{ textAlign: 'center' }}>
                         <div style={{ fontSize: '12px', color: '#888' }}>gain</div>
                         <div style={{ color: '#fff', fontWeight: '600' }}>
-                          {post.hikeData.elevationGain}m
+                          {post.hikeData?.elevationGain || 0}m
                         </div>
                       </div>
                       <div style={{ textAlign: 'center' }}>
                         <div style={{ fontSize: '12px', color: '#888' }}>diff</div>
                         <div style={{ color: '#fff', fontWeight: '600', textTransform: 'capitalize' }}>
-                          {post.hikeData.difficulty}
+                          {post.hikeData?.difficulty || 'easy'}
                         </div>
                       </div>
                     </div>
 
-                    {/* Like Button */}
-                    <div style={{ display: 'flex', gap: '20px' }}>
+                    {/* Action Buttons */}
+                    <div style={{ display: 'flex', gap: '20px', marginBottom: '10px' }}>
                       <button
+                        onClick={() => handleLikePost(post.id)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: likedPosts[post.id] ? '#ff4444' : '#888',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '5px'
+                        }}
+                      >
+                        ❤️ {post.likes?.length || 0}
+                      </button>
+                      <button
+                        onClick={() => setShowComments(prev => ({ ...prev, [post.id]: !prev[post.id] }))}
                         style={{
                           background: 'none',
                           border: 'none',
@@ -226,9 +474,78 @@ const CommunityScreen = ({ setCurrentScreen, user }) => {
                           gap: '5px'
                         }}
                       >
-                        ❤️ {post.likes?.length || 0}
+                        💬 {post.comments?.length || 0}
+                      </button>
+                      <button
+                        onClick={() => handleSharePost(post)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#888',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '5px'
+                        }}
+                      >
+                        ↗️ {post.shares || 0}
                       </button>
                     </div>
+
+                    {/* Comments Section */}
+                    {showComments[post.id] && (
+                      <div style={{
+                        marginTop: '10px',
+                        padding: '10px',
+                        background: '#0a0a0a',
+                        borderRadius: '8px'
+                      }}>
+                        {/* Existing Comments */}
+                        {post.comments?.map(comment => (
+                          <div key={comment.id} style={{
+                            padding: '8px',
+                            borderBottom: '1px solid #222'
+                          }}>
+                            <span style={{ color: '#fff', fontWeight: '600', marginRight: '8px' }}>
+                              {comment.username}:
+                            </span>
+                            <span style={{ color: '#888' }}>{comment.text}</span>
+                          </div>
+                        ))}
+
+                        {/* Add Comment */}
+                        <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+                          <input
+                            type="text"
+                            placeholder="Add a comment..."
+                            value={commentText[post.id] || ''}
+                            onChange={(e) => setCommentText(prev => ({ ...prev, [post.id]: e.target.value }))}
+                            onKeyPress={(e) => e.key === 'Enter' && handleAddComment(post.id)}
+                            style={{
+                              flex: 1,
+                              padding: '8px',
+                              background: '#222',
+                              border: '1px solid #333',
+                              borderRadius: '5px',
+                              color: '#fff'
+                            }}
+                          />
+                          <button
+                            onClick={() => handleAddComment(post.id)}
+                            style={{
+                              padding: '8px 15px',
+                              background: '#333',
+                              border: 'none',
+                              borderRadius: '5px',
+                              color: '#fff',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Post
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))
@@ -241,7 +558,7 @@ const CommunityScreen = ({ setCurrentScreen, user }) => {
           <div>
             <h3 style={{ color: '#fff', marginBottom: '15px' }}>Your Friends ({friends.length})</h3>
             {friends.length === 0 ? (
-              <p style={{ color: '#888', textAlign: 'center' }}>No friends yet. Find some in the search tab!</p>
+              <p style={{ color: '#888', textAlign: 'center' }}>No friends yet. Search for friends above!</p>
             ) : (
               friends.map(friend => (
                 <div key={friend.uid} style={{
@@ -272,6 +589,18 @@ const CommunityScreen = ({ setCurrentScreen, user }) => {
                       {friend.totalHikes || 0} hikes · {friend.totalDistance?.toFixed(1) || 0}km
                     </div>
                   </div>
+                  <button
+                    style={{
+                      background: 'none',
+                      border: '1px solid #444',
+                      color: '#888',
+                      padding: '5px 10px',
+                      borderRadius: '5px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    View
+                  </button>
                 </div>
               ))
             )}
