@@ -32,88 +32,91 @@ const HomeScreen = ({ setCurrentScreen, startNewHike, hikes, onSelectHike }) => 
   };
 
   return (
-    <div className="content">
-      <div className="status-bar">
-        <span className="time">9:41</span>
-        <div className="battery">
-          <span>📶</span>
-          <span>📶</span>
-          <span>🔋</span>
+    <div className="App">
+      {/* Clean Top Bar - No emojis */}
+      <div className="top-bar">
+        <span className="time">{format(new Date(), 'h:mm a')}</span>
+        <div className="menu-icons">
+          <div className="menu-icon"></div>
+          <div className="menu-icon"></div>
         </div>
       </div>
 
-      <div className="header">
-        <button className="menu-btn" onClick={() => {}}>☰</button>
-        <h2>HiKompanion</h2>
-        <button className="profile-btn" onClick={() => {}}>👤</button>
-      </div>
-
-      <div className="stats-card">
-        <div className="stats-header">
-          <span>Total Distance</span>
-          <span>🏆</span>
+      <div className="content">
+        <div className="header">
+          <button className="menu-btn" onClick={() => {}}>☰</button>
+          <h2>HiKompanion</h2>
+          <button className="profile-btn" onClick={() => {}}>👤</button>
         </div>
-        <div className="stats-value">{totalDistance.toFixed(1)} km</div>
-        <div className="stats-label">{hikes.length} hikes completed</div>
-      </div>
 
-      <div className="today-section">
-        <h3>{format(today, 'MMMM d')}</h3>
-        <div className="date-grid">
-          {weekDays.map((day, index) => (
-            <div 
-              key={index}
-              className={`date-cell ${day.isToday ? 'today' : ''}`}
-            >
-              <div>{day.dayName}</div>
-              <div><strong>{day.dayNumber}</strong></div>
-            </div>
-          ))}
+        <div className="stats-card">
+          <div className="stats-header">
+            <span>Total Distance</span>
+            <span>🏆</span>
+          </div>
+          <div className="stats-value">{totalDistance.toFixed(1)} km</div>
+          <div className="stats-label">{hikes.length} hikes completed</div>
         </div>
-      </div>
 
-      <div style={{ display: 'flex', gap: '10px', margin: '20px 0' }}>
-        <button 
-          className="primary-btn" 
-          style={{ flex: 1 }}
-          onClick={startNewHike}
-        >
-          Start Hike
-        </button>
-        <button 
-          className="secondary-btn"
-          style={{ flex: 1 }}
-          onClick={() => setCurrentScreen('history')}
-        >
-          View All
-        </button>
-      </div>
+        <div className="today-section">
+          <h3>{format(today, 'MMMM d, yyyy')}</h3>
+          <div className="date-grid">
+            {weekDays.map((day, index) => (
+              <div 
+                key={index}
+                className={`date-cell ${day.isToday ? 'today' : ''}`}
+              >
+                <div>{day.dayName}</div>
+                <div><strong>{day.dayNumber}</strong></div>
+              </div>
+            ))}
+          </div>
+        </div>
 
-      <h3 style={{ color: '#ffffff', marginBottom: '15px' }}>Recent Hikes</h3>
-      {recentHikes.length > 0 ? (
-        recentHikes.map((hike) => (
-          <div 
-            key={hike.id} 
-            className="hike-item"
-            onClick={() => onSelectHike && onSelectHike(hike)}
+        <div className="button-container">
+          <button 
+            className="primary-btn" 
+            onClick={startNewHike}
           >
-            <div className="hike-header">
-              <span className="hike-distance">{hike.distance?.toFixed(1) || 0} km</span>
-              <span className={`difficulty-badge difficulty-${hike.difficulty || 'easy'}`}>
-                {hike.difficulty || 'easy'}
+            Start Hike
+          </button>
+          <button 
+            className="secondary-btn"
+            onClick={() => setCurrentScreen('history')}
+          >
+            View History
+          </button>
+        </div>
+
+        <h3 style={{ color: '#ffffff', marginBottom: '16px', fontSize: '18px', fontWeight: '500' }}>
+          Recent Hikes
+        </h3>
+        
+        {recentHikes.length > 0 ? (
+          recentHikes.map((hike) => (
+            <div 
+              key={hike.id} 
+              className="hike-item"
+              onClick={() => onSelectHike && onSelectHike(hike)}
+            >
+              <div className="hike-header">
+                <span className="hike-distance">{hike.distance?.toFixed(1) || 0} km</span>
+                <span className={`difficulty-badge difficulty-${hike.difficulty || 'easy'}`}>
+                  {hike.difficulty || 'easy'}
+                </span>
+              </div>
+              <p className="hike-description">{hike.description || 'No description'}</p>
+              <span className="hike-date">
+                {formatSafeDate(hike.startTime)}
               </span>
             </div>
-            <p className="hike-description">{hike.description || 'No description'}</p>
-            <span className="hike-date">
-              {formatSafeDate(hike.startTime)}
-            </span>
-          </div>
-        ))
-      ) : (
-        <p style={{ color: '#999', textAlign: 'center', margin: '40px 0' }}>
-          No hikes yet. Start your first hike!
-        </p>
-      )}
+          ))
+        ) : (
+          <p style={{ color: '#666666', textAlign: 'center', margin: '60px 0' }}>
+            No hikes yet. Start your first adventure!
+          </p>
+        )}
+      </div>
 
       <div className="bottom-nav">
         <div className="nav-item active" onClick={() => setCurrentScreen('home')}>
