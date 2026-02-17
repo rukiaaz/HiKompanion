@@ -17,6 +17,9 @@ const ActiveHike = ({ activeHike, setActiveHike, saveCompletedHike, setCurrentSc
   const [duration, setDuration] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [path, setPath] = useState([]);
+  const [elevationGain, setElevationGain] = useState(0);
+  const [currentElevation, setCurrentElevation] = useState(0);
+  const [maxElevation, setMaxElevation] = useState(0);
   const watchIdRef = useRef();
 
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
@@ -35,12 +38,25 @@ const ActiveHike = ({ activeHike, setActiveHike, saveCompletedHike, setCurrentSc
     if (!isPaused && navigator.geolocation) {
       watchIdRef.current = navigator.geolocation.watchPosition(
         (pos) => {
+          const newElevation = pos.coords.altitude || 0;
           const newPos = {
             lat: pos.coords.latitude,
             lng: pos.coords.longitude,
+            altitude: newElevation,
             timestamp: pos.timestamp
           };
 
+          // Elevation gain calculation
+          if (newElevation > currentElevation) {
+            setElevationGain(prev => prev + (newElevation - currentElevation));
+          }
+          
+          // Max elevation
+          if (newElevation > maxElevation) {
+            setMaxElevation(newElevation);
+          }
+
+          setCurrentElevation(newElevation);
           setPosition(newPos);
           
           setPath(prevPath => {
@@ -107,6 +123,8 @@ const ActiveHike = ({ activeHike, setActiveHike, saveCompletedHike, setCurrentSc
         ...activeHike,
         distance: parseFloat(distance.toFixed(2)),
         duration: formatTime(duration),
+        elevationGain: parseFloat(elevationGain.toFixed(1)),
+        maxElevation: parseFloat(maxElevation.toFixed(1)),
         path: path,
         endTime: new Date().toISOString()
       };
@@ -116,7 +134,6 @@ const ActiveHike = ({ activeHike, setActiveHike, saveCompletedHike, setCurrentSc
     }
   };
 
-  // FIXED: MapController with correct useEffect dependencies
   const MapController = () => {
     const map = useMap();
     
@@ -124,7 +141,7 @@ const ActiveHike = ({ activeHike, setActiveHike, saveCompletedHike, setCurrentSc
       if (position) {
         map.setView([position.lat, position.lng], 16);
       }
-    }, [position, map]); // ✅ Added 'map' to dependencies
+    }, [position, map]);
     
     return null;
   };
@@ -164,8 +181,23 @@ const ActiveHike = ({ activeHike, setActiveHike, saveCompletedHike, setCurrentSc
             <div className="label">time</div>
           </div>
           <div className="stat-block">
+            <div className="value">{elevationGain.toFixed(0)}</div>
+            <div className="label">elevation</div>
+          </div>
+        </div>
+
+        <div className="stat-row">
+          <div className="stat-block">
             <div className="value">{duration > 0 ? (distance / (duration / 3600)).toFixed(1) : 0}</div>
             <div className="label">km/h</div>
+          </div>
+          <div className="stat-block">
+            <div className="value">{currentElevation.toFixed(0)}</div>
+            <div className="label">current</div>
+          </div>
+          <div className="stat-block">
+            <div className="value">{maxElevation.toFixed(0)}</div>
+            <div className="label">max</div>
           </div>
         </div>
 
@@ -182,6 +214,26 @@ const ActiveHike = ({ activeHike, setActiveHike, saveCompletedHike, setCurrentSc
           >
             Stop
           </button>
+        </div>
+      </div>
+
+      {/* Bottom Navigation */}
+      <div className="bottom-nav">
+        <div className="nav-item" onClick={() => setCurrentScreen('home')}>
+          <span>🏠</span>
+          <span>Home</span>
+        </div>
+        <div className="nav-item" onClick={() => setCurrentScreen('history')}>
+          <span>📋</span>
+          <span>History</span>
+        </div>
+        <div className="nav-item active" onClick={() => setCurrentScreen('active')}>
+          <span>➕</span>
+          <span>New</span>
+        </div>
+        <div className="nav-item" onClick={() => setCurrentScreen('profile')}>
+          <span>👤</span>
+          <span>Profile</span>
         </div>
       </div>
     </div>

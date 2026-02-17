@@ -10,10 +10,7 @@
     "react-router-dom": "^6.20.1",
     "date-fns": "^2.30.0",
     "leaflet": "^1.9.4",
-    "react-leaflet": "^4.2.1",
-    "recharts": "^2.10.3",
-    "axios": "^1.6.2",
-    "file-saver": "^2.0.5"
+    "react-leaflet": "^4.2.1"
   },
   "scripts": {
     "start": "react-scripts start",

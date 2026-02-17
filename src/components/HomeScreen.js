@@ -46,7 +46,7 @@ const HomeScreen = ({ setCurrentScreen, startNewHike, hikes, onSelectHike }) => 
         <div className="header">
           <button className="menu-btn" onClick={() => {}}>☰</button>
           <h2>HiKompanion</h2>
-          <button className="profile-btn" onClick={() => {}}>👤</button>
+          <button className="profile-btn" onClick={() => setCurrentScreen('profile')}>👤</button>
         </div>
 
         <div className="stats-card">
@@ -118,6 +118,7 @@ const HomeScreen = ({ setCurrentScreen, startNewHike, hikes, onSelectHike }) => 
         )}
       </div>
 
+      {/* Bottom Navigation */}
       <div className="bottom-nav">
         <div className="nav-item active" onClick={() => setCurrentScreen('home')}>
           <span>🏠</span>
@@ -131,7 +132,7 @@ const HomeScreen = ({ setCurrentScreen, startNewHike, hikes, onSelectHike }) => 
           <span>➕</span>
           <span>New</span>
         </div>
-        <div className="nav-item" onClick={() => {}}>
+        <div className="nav-item" onClick={() => setCurrentScreen('profile')}>
           <span>👤</span>
           <span>Profile</span>
         </div>

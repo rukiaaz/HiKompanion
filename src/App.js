@@ -5,6 +5,7 @@ import ActiveHike from './components/ActiveHike';
 import HikeHistory from './components/HikeHistory';
 import AddHike from './components/AddHike';
 import HikeDetail from './components/HikeDetail';
+import ProfileScreen from './components/ProfileScreen';
 
 function App() {
   const [currentScreen, setCurrentScreen] = useState('home');
@@ -12,6 +13,7 @@ function App() {
   const [activeHike, setActiveHike] = useState(null);
   const [selectedHike, setSelectedHike] = useState(null);
 
+  // Load hikes from localStorage
   useEffect(() => {
     const savedHikes = localStorage.getItem('hikes');
     if (savedHikes) {
@@ -23,6 +25,7 @@ function App() {
     }
   }, []);
 
+  // Save hikes to localStorage
   useEffect(() => {
     if (hikes.length > 0) {
       localStorage.setItem('hikes', JSON.stringify(hikes));
@@ -37,6 +40,8 @@ function App() {
       endTime: null,
       distance: 0,
       path: [],
+      elevationGain: 0,
+      maxElevation: 0,
       status: 'active',
       paused: false,
       description: '',
@@ -105,6 +110,13 @@ function App() {
       {currentScreen === 'detail' && (
         <HikeDetail 
           hike={selectedHike}
+          setCurrentScreen={setCurrentScreen}
+        />
+      )}
+
+      {currentScreen === 'profile' && (
+        <ProfileScreen 
+          hikes={hikes}
           setCurrentScreen={setCurrentScreen}
         />
       )}
