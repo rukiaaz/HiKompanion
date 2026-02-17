@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 
-const ProfileScreen = ({ hikes, setCurrentScreen }) => {
+const ProfileScreen = ({ hikes, setCurrentScreen, user }) => {
   const [weatherData, setWeatherData] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -27,10 +27,9 @@ const ProfileScreen = ({ hikes, setCurrentScreen }) => {
       ) : null
   };
 
-  // Simulated weather data (since axios not installed)
+  // Simulated weather data
   useEffect(() => {
     setLoading(true);
-    // Simulate API call
     setTimeout(() => {
       setWeatherData({
         current_weather: {
@@ -65,19 +64,25 @@ const ProfileScreen = ({ hikes, setCurrentScreen }) => {
       reader.onload = (e) => {
         try {
           const imported = JSON.parse(e.target.result);
-          // Merge with existing hikes
           const merged = [...imported, ...hikes];
-          // Remove duplicates by id
           const unique = merged.filter((hike, index, self) =>
             index === self.findIndex(h => h.id === hike.id)
           );
           localStorage.setItem('hikes', JSON.stringify(unique));
-          window.location.reload(); // Simple refresh
+          window.location.reload();
         } catch (error) {
           alert('Invalid file format');
         }
       };
       reader.readAsText(file);
+    }
+  };
+
+  // Logout function
+  const handleLogout = () => {
+    if (window.confirm('Log out from HiKompanion?')) {
+      localStorage.removeItem('currentUser');
+      window.location.reload();
     }
   };
 
@@ -96,7 +101,36 @@ const ProfileScreen = ({ hikes, setCurrentScreen }) => {
           <button onClick={() => setCurrentScreen('home')} className="back-btn">
             ←
           </button>
-          <h2 className="detail-title">Profile</h2>
+          <div>
+            <h2 className="detail-title">Profile</h2>
+            <p style={{ color: '#888', fontSize: '14px', marginTop: '4px' }}>
+              {user?.displayName || user?.username}
+            </p>
+          </div>
+        </div>
+
+        {/* User Profile Card */}
+        <div className="stats-card" style={{ marginBottom: '24px', textAlign: 'center' }}>
+          <div style={{
+            width: '80px',
+            height: '80px',
+            borderRadius: '50%',
+            background: '#111',
+            margin: '0 auto 15px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            border: '2px solid #333',
+            fontSize: '40px'
+          }}>
+            👤
+          </div>
+          <h2 style={{ color: '#fff', fontSize: '24px', marginBottom: '5px' }}>
+            {user?.displayName || user?.username}
+          </h2>
+          <p style={{ color: '#888', fontSize: '14px' }}>
+            Member since {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Today'}
+          </p>
         </div>
 
         {/* Weather Widget */}
@@ -165,43 +199,6 @@ const ProfileScreen = ({ hikes, setCurrentScreen }) => {
           </div>
         </div>
 
-        {/* Simple Chart Placeholder */}
-        <div className="stats-card" style={{ marginBottom: '24px' }}>
-          <div className="stats-header">
-            <span>Recent Progress</span>
-            <span>📈</span>
-          </div>
-          <div style={{ 
-            height: '150px', 
-            background: '#0a0a0a', 
-            borderRadius: '12px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#888',
-            fontSize: '14px',
-            border: '1px solid #222',
-            marginTop: '16px'
-          }}>
-            <p>Progress chart will appear here</p>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: '16px' }}>
-            {hikes.slice(0, 5).map((hike, i) => (
-              <div key={i} style={{ textAlign: 'center' }}>
-                <div style={{ 
-                  width: '30px', 
-                  height: `${Math.min(60, (hike.distance || 0) * 10)}px`, 
-                  background: '#fff',
-                  marginBottom: '4px'
-                }}></div>
-                <div style={{ fontSize: '10px', color: '#888' }}>
-                  {format(new Date(hike.startTime), 'dd')}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
         {/* Best Hike */}
         {records.bestHike && (
           <div className="stats-card" style={{ marginBottom: '24px' }}>
@@ -242,6 +239,21 @@ const ProfileScreen = ({ hikes, setCurrentScreen }) => {
           </label>
         </div>
 
+        {/* Logout Button */}
+        <button
+          onClick={handleLogout}
+          className="secondary-btn"
+          style={{
+            width: '100%',
+            marginTop: '20px',
+            marginBottom: '20px',
+            borderColor: '#663333',
+            color: '#cc8888'
+          }}
+        >
+          🚪 Log Out
+        </button>
+
         {/* Offline Maps Status */}
         <div style={{ 
           marginTop: '16px',
@@ -280,9 +292,9 @@ const ProfileScreen = ({ hikes, setCurrentScreen }) => {
           <span>➕</span>
           <span>New</span>
         </div>
-        <div className="nav-item active" onClick={() => setCurrentScreen('profile')}>
-          <span>👤</span>
-          <span>Profile</span>
+        <div className="nav-item" onClick={() => setCurrentScreen('community')}>
+          <span>🌐</span>
+          <span>Community</span>
         </div>
       </div>
     </div>

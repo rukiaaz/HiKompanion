@@ -1,7 +1,7 @@
 import React from 'react';
 import { format, startOfWeek, addDays } from 'date-fns';
 
-const HomeScreen = ({ setCurrentScreen, startNewHike, hikes, onSelectHike }) => {
+const HomeScreen = ({ setCurrentScreen, startNewHike, hikes, onSelectHike, user }) => {
   const today = new Date();
   const startOfCurrentWeek = startOfWeek(today, { weekStartsOn: 1 });
   
@@ -43,9 +43,15 @@ const HomeScreen = ({ setCurrentScreen, startNewHike, hikes, onSelectHike }) => 
       </div>
 
       <div className="content">
+        {/* Header with User Name */}
         <div className="header">
           <button className="menu-btn" onClick={() => {}}>☰</button>
-          <h2>HiKompanion</h2>
+          <div style={{ textAlign: 'center' }}>
+            <h2 style={{ marginBottom: '4px' }}>HiKompanion</h2>
+            <p style={{ color: '#888', fontSize: '14px' }}>
+              Welcome, {user?.displayName || user?.username || 'Hiker'}! 👋
+            </p>
+          </div>
           <button className="profile-btn" onClick={() => setCurrentScreen('profile')}>👤</button>
         </div>
 
@@ -132,9 +138,9 @@ const HomeScreen = ({ setCurrentScreen, startNewHike, hikes, onSelectHike }) => 
           <span>➕</span>
           <span>New</span>
         </div>
-        <div className="nav-item" onClick={() => setCurrentScreen('profile')}>
-          <span>👤</span>
-          <span>Profile</span>
+        <div className="nav-item" onClick={() => setCurrentScreen('community')}>
+          <span>🌐</span>
+          <span>Community</span>
         </div>
       </div>
     </div>

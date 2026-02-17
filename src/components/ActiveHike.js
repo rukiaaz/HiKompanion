@@ -134,6 +134,17 @@ const ActiveHike = ({ activeHike, setActiveHike, saveCompletedHike, setCurrentSc
     }
   };
 
+  // NEW: Abort function - discard hike without saving
+  const handleAbort = () => {
+    if (window.confirm('Abort this hike? All progress will be lost.')) {
+      if (watchIdRef.current) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+      }
+      setActiveHike(null);
+      setCurrentScreen('home');
+    }
+  };
+
   const MapController = () => {
     const map = useMap();
     
@@ -214,6 +225,14 @@ const ActiveHike = ({ activeHike, setActiveHike, saveCompletedHike, setCurrentSc
           >
             Stop
           </button>
+          {/* NEW: Abort Button */}
+          <button 
+            className="control-btn"
+            style={{ background: '#1a1a1a', color: '#888', border: '1px solid #333' }}
+            onClick={handleAbort}
+          >
+            ✕ Abort
+          </button>
         </div>
       </div>
 
@@ -231,9 +250,9 @@ const ActiveHike = ({ activeHike, setActiveHike, saveCompletedHike, setCurrentSc
           <span>➕</span>
           <span>New</span>
         </div>
-        <div className="nav-item" onClick={() => setCurrentScreen('profile')}>
-          <span>👤</span>
-          <span>Profile</span>
+        <div className="nav-item" onClick={() => setCurrentScreen('community')}>
+          <span>🌐</span>
+          <span>Community</span>
         </div>
       </div>
     </div>

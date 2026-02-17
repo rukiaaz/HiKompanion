@@ -6,12 +6,36 @@ import HikeHistory from './components/HikeHistory';
 import AddHike from './components/AddHike';
 import HikeDetail from './components/HikeDetail';
 import ProfileScreen from './components/ProfileScreen';
+import LoginScreen from './components/LoginScreen';
+import CommunityScreen from './components/CommunityScreen';
+import TutorialScreen from './components/TutorialScreen';
+import NewUserScreen from './components/NewUserScreen';
 
 function App() {
-  const [currentScreen, setCurrentScreen] = useState('home');
+  const [currentScreen, setCurrentScreen] = useState('login');
   const [hikes, setHikes] = useState([]);
   const [activeHike, setActiveHike] = useState(null);
   const [selectedHike, setSelectedHike] = useState(null);
+  const [user, setUser] = useState(null);
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [isNewUser, setIsNewUser] = useState(false);
+
+  // Check for existing user on app start
+  useEffect(() => {
+    const savedUser = localStorage.getItem('currentUser');
+    if (savedUser) {
+      const userData = JSON.parse(savedUser);
+      setUser(userData);
+      
+      // Check if user has seen tutorial
+      if (userData.hasSeenTutorial) {
+        setCurrentScreen('home');
+      } else {
+        setShowTutorial(true);
+        setCurrentScreen('home'); // Show home behind tutorial
+      }
+    }
+  }, []);
 
   // Load hikes from localStorage
   useEffect(() => {
@@ -71,54 +95,128 @@ function App() {
     setCurrentScreen('detail');
   };
 
+  const handleLoginSuccess = (userData, isNew = false) => {
+    if (isNew) {
+      setIsNewUser(true);
+    } else if (userData) {
+      setUser(userData);
+      
+      // Check if user has seen tutorial
+      if (userData.hasSeenTutorial) {
+        setCurrentScreen('home');
+      } else {
+        setShowTutorial(true);
+        setCurrentScreen('home');
+      }
+    }
+  };
+
+  const handleNewUserComplete = (newUser) => {
+    setUser(newUser);
+    setIsNewUser(false);
+    setShowTutorial(true);
+    setCurrentScreen('home');
+  };
+
+  const handleTutorialComplete = () => {
+    // Mark tutorial as seen
+    const updatedUser = { ...user, hasSeenTutorial: true };
+    localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+    setUser(updatedUser);
+    setShowTutorial(false);
+  };
+
+  const handleTutorialSkip = () => {
+    // Even if skipped, mark as seen so it doesn't show again
+    const updatedUser = { ...user, hasSeenTutorial: true };
+    localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+    setUser(updatedUser);
+    setShowTutorial(false);
+  };
+
   return (
     <div className="App">
-      {currentScreen === 'home' && (
-        <HomeScreen 
-          setCurrentScreen={setCurrentScreen}
-          startNewHike={startNewHike}
-          hikes={hikes}
-          onSelectHike={viewHikeDetail}
-        />
+      {/* Login Screen */}
+      {currentScreen === 'login' && !user && !isNewUser && (
+        <LoginScreen onLoginSuccess={handleLoginSuccess} />
       )}
-      
-      {currentScreen === 'active' && (
-        <ActiveHike 
-          activeHike={activeHike}
-          setActiveHike={setActiveHike}
-          saveCompletedHike={saveCompletedHike}
-          setCurrentScreen={setCurrentScreen}
-        />
+
+      {/* New User Name Input */}
+      {isNewUser && (
+        <NewUserScreen onComplete={handleNewUserComplete} />
       )}
-      
-      {currentScreen === 'history' && (
-        <HikeHistory 
-          hikes={hikes}
-          setCurrentScreen={setCurrentScreen}
-          onSelectHike={viewHikeDetail}
-        />
-      )}
-      
-      {currentScreen === 'add' && (
-        <AddHike 
-          setCurrentScreen={setCurrentScreen}
-          saveCompletedHike={saveCompletedHike}
-          activeHike={activeHike}
-        />
-      )}
-      
-      {currentScreen === 'detail' && (
-        <HikeDetail 
-          hike={selectedHike}
-          setCurrentScreen={setCurrentScreen}
+
+      {/* Tutorial Overlay */}
+      {showTutorial && user && (
+        <TutorialScreen
+          onComplete={handleTutorialComplete}
+          onSkip={handleTutorialSkip}
+          userName={user.displayName || user.username}
         />
       )}
 
-      {currentScreen === 'profile' && (
-        <ProfileScreen 
-          hikes={hikes}
-          setCurrentScreen={setCurrentScreen}
-        />
+      {/* Main App Screens (only show if user exists) */}
+      {user && (
+        <>
+          {currentScreen === 'home' && (
+            <HomeScreen 
+              setCurrentScreen={setCurrentScreen}
+              startNewHike={startNewHike}
+              hikes={hikes}
+              onSelectHike={viewHikeDetail}
+              user={user}
+            />
+          )}
+          
+          {currentScreen === 'active' && (
+            <ActiveHike 
+              activeHike={activeHike}
+              setActiveHike={setActiveHike}
+              saveCompletedHike={saveCompletedHike}
+              setCurrentScreen={setCurrentScreen}
+            />
+          )}
+          
+          {currentScreen === 'history' && (
+            <HikeHistory 
+              hikes={hikes}
+              setCurrentScreen={setCurrentScreen}
+              onSelectHike={viewHikeDetail}
+            />
+          )}
+          
+          {currentScreen === 'add' && (
+            <AddHike 
+              setCurrentScreen={setCurrentScreen}
+              saveCompletedHike={saveCompletedHike}
+              activeHike={activeHike}
+              user={user}
+            />
+          )}
+          
+          {currentScreen === 'detail' && (
+            <HikeDetail 
+              hike={selectedHike}
+              setCurrentScreen={setCurrentScreen}
+              user={user}
+            />
+          )}
+
+          {currentScreen === 'profile' && (
+            <ProfileScreen 
+              hikes={hikes}
+              setCurrentScreen={setCurrentScreen}
+              user={user}
+            />
+          )}
+
+          {currentScreen === 'community' && (
+            <CommunityScreen 
+              setCurrentScreen={setCurrentScreen}
+              user={user}
+            />
+          )}
+        </>
       )}
     </div>
   );
