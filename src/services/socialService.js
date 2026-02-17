@@ -52,20 +52,46 @@ class SocialService {
   
   async searchUsers(searchTerm) {
     try {
-      // In local storage, we need to search through all profiles
-      // This is a limitation - we can only search users we know about
-      // For demo, we'll return mock data
-      const mockUsers = [
-        { uid: 'user_2', username: 'hiker_john', totalHikes: 12 },
-        { uid: 'user_3', username: 'trail_master', totalHikes: 45 },
-        { uid: 'user_4', username: 'mountain_lover', totalHikes: 23 },
-        { uid: 'user_5', username: 'adventure_seeker', totalHikes: 8 }
-      ].filter(u => u.username.includes(searchTerm.toLowerCase()));
+      const currentUser = await this.getCurrentUser();
+      if (!currentUser) throw new Error('Not logged in');
+
+      // Get all users from phoneStorage
+      const result = await phoneStorage.getAllUsers();
       
-      return { success: true, users: mockUsers };
+      if (!result.success) {
+        return { success: false, error: result.error, users: [] };
+      }
+
+      // Filter users:
+      // 1. Not the current user
+      // 2. Username includes search term (case insensitive)
+      // 3. Not already friends
+      const friends = await this.getFriends();
+      const friendUsernames = friends.success ? friends.friends.map(f => f.username) : [];
+
+      const filteredUsers = result.users.filter(user => 
+        user.uid !== currentUser.uid && // Not current user
+        user.username.toLowerCase().includes(searchTerm.toLowerCase()) && // Matches search
+        !friendUsernames.includes(user.username) // Not already friends
+      );
+
+      // Check for pending friend requests
+      const requests = await this.getFriendRequests();
+      const pendingRequests = requests.success ? requests.requests.map(r => r.to) : [];
+
+      // Mark users who have pending requests
+      const usersWithStatus = filteredUsers.map(user => ({
+        uid: user.uid,
+        username: user.username,
+        totalHikes: user.totalHikes || 0,
+        totalDistance: user.totalDistance || 0,
+        pending: pendingRequests.includes(user.username)
+      }));
+
+      return { success: true, users: usersWithStatus };
     } catch (error) {
       console.error('Error searching users:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: error.message, users: [] };
     }
   }
 
@@ -74,8 +100,18 @@ class SocialService {
       const currentUser = await this.getCurrentUser();
       if (!currentUser) throw new Error('Not logged in');
 
+      // Check if request already exists
+      const requests = await this.getFriendRequests();
+      const existingRequest = requests.requests?.find(r => 
+        r.to === targetUsername && r.from === currentUser.uid && r.status === 'pending'
+      );
+
+      if (existingRequest) {
+        return { success: false, error: 'Friend request already sent' };
+      }
+
       const request = {
-        id: `req_${Date.now()}`,
+        id: `req_${Date.now()}_${Math.random()}`,
         from: currentUser.uid,
         fromName: currentUser.username,
         to: targetUsername,
@@ -97,19 +133,31 @@ class SocialService {
       if (!currentUser) throw new Error('Not logged in');
 
       const result = await phoneStorage.getFriendRequests();
-      const requests = result.requests.filter(r => r.to === currentUser.username);
       
-      return { success: true, requests };
+      // Filter requests for this user (incoming only)
+      const incomingRequests = result.requests.filter(r => r.to === currentUser.username);
+      
+      return { success: true, requests: incomingRequests };
     } catch (error) {
       console.error('Error getting friend requests:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: error.message, requests: [] };
     }
   }
 
   async acceptFriendRequest(requestId) {
     try {
-      await phoneStorage.acceptFriendRequest(requestId);
-      return { success: true };
+      const currentUser = await this.getCurrentUser();
+      if (!currentUser) throw new Error('Not logged in');
+
+      const result = await phoneStorage.acceptFriendRequest(requestId);
+      
+      if (result.success) {
+        // Update user's friend list in profile
+        const updatedUser = await this.getCurrentUser();
+        return { success: true, user: updatedUser };
+      }
+      
+      return result;
     } catch (error) {
       console.error('Error accepting friend request:', error);
       return { success: false, error: error.message };
@@ -123,18 +171,24 @@ class SocialService {
 
       const result = await phoneStorage.getFriends(currentUser.uid);
       
-      // Get friend profiles (mock data for demo)
-      const friends = result.friends.map(friendId => ({
-        uid: friendId,
-        username: friendId === 'user_2' ? 'hiker_john' : 'trail_master',
-        totalHikes: 23,
-        totalDistance: 45.6
-      }));
+      // Get friend profiles
+      const friends = [];
+      for (const friendId of result.friends) {
+        const profile = await phoneStorage.getUserProfile(friendId);
+        if (profile.success && profile.profile) {
+          friends.push({
+            uid: friendId,
+            username: profile.profile.username,
+            totalHikes: profile.profile.totalHikes || 0,
+            totalDistance: profile.profile.totalDistance || 0
+          });
+        }
+      }
       
       return { success: true, friends };
     } catch (error) {
       console.error('Error getting friends:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: error.message, friends: [] };
     }
   }
 
@@ -187,7 +241,7 @@ class SocialService {
       
       // Load images for posts
       for (const post of feedResult.feed) {
-        if (post.hikeData.imageId) {
+        if (post.hikeData?.imageId) {
           const imgResult = await phoneStorage.getImage(post.hikeData.imageId);
           if (imgResult.success) {
             post.hikeData.imageUrl = imgResult.image.data;
@@ -198,7 +252,7 @@ class SocialService {
       return { success: true, posts: feedResult.feed };
     } catch (error) {
       console.error('Error getting feed:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: error.message, posts: [] };
     }
   }
 
